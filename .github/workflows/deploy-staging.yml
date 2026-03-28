@@ -1,18 +1,23 @@
 name: Deploy to Staging
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI - Build & Test"]
     branches: [build]
+    types: [completed]
   workflow_dispatch: # Allow manual trigger
 
 jobs:
   deploy:
     name: Deploy to Staging
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
