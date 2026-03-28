@@ -1,0 +1,125 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [build]
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build application
+        run: pnpm build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          DATABASE_URL: ${{ secrets.SMOKESHOP_DATABASE_URL }}
+          INVENTORY_MANAGER_EMAILS: ${{ secrets.INVENTORY_MANAGER_EMAILS }}
+          COINBASE_COMMERCE_API_KEY: ${{ secrets.COINBASE_COMMERCE_API_KEY }}
+          NEXT_PUBLIC_SITE_URL: https://staging.neutraldevelopment.com
+          AGE_VERIFICATION_PROVIDER: dob-photo
+
+      - name: Create deployment package
+        run: |
+          # Create a clean deployment directory
+          mkdir -p deploy
+
+          # Copy built application and dependencies from CI
+          cp -r .next deploy/
+          cp -r app deploy/
+          cp -r components deploy/
+          cp -r lib deploy/
+          cp -r public deploy/
+          cp -r node_modules deploy/
+          cp package.json deploy/
+          cp next.config.mjs deploy/
+          cp tsconfig.json deploy/
+          cp middleware.ts deploy/
+          cp server.js deploy/
+          cp restart.sh deploy/
+          cp check-deployment.sh deploy/
+          cp index.php deploy/
+          cp .htaccess deploy/
+          cp ecosystem.config.js deploy/
+
+          # Update index.php to proxy to staging port 3001
+          sed -i "s|http://127.0.0.1:3000|http://127.0.0.1:3001|g" deploy/index.php
+
+          #Create .env.production
+          echo "NODE_ENV=production" > deploy/.env.production
+          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> deploy/.env.production
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> deploy/.env.production
+          echo "DATABASE_URL=${{ secrets.SMOKESHOP_DATABASE_URL }}" >> deploy/.env.production
+          echo "INVENTORY_MANAGER_EMAILS=${{ secrets.INVENTORY_MANAGER_EMAILS }}" >> deploy/.env.production
+          echo "COINBASE_COMMERCE_API_KEY=${{ secrets.COINBASE_COMMERCE_API_KEY }}" >> deploy/.env.production
+          echo "COINBASE_WEBHOOK_SECRET=${{ secrets.COINBASE_WEBHOOK_SECRET }}" >> deploy/.env.production
+          echo "NEXT_PUBLIC_SITE_URL=https://staging.neutraldevelopment.com" >> deploy/.env.production
+          echo "AGE_VERIFICATION_PROVIDER=dob-photo" >> deploy/.env.production
+          echo "PORT=3001" >> deploy/.env.production
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HOSTINGER_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p ${{ secrets.HOSTINGER_SSH_PORT }} -H ${{ secrets.HOSTINGER_SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Staging Server
+        run: |
+          # Sync files to Hostinger
+          rsync -avz --delete \
+            -e "ssh -p ${{ secrets.HOSTINGER_SSH_PORT }}" \
+            deploy/ \
+            ${{ secrets.HOSTINGER_SSH_USER }}@${{ secrets.HOSTINGER_SSH_HOST }}:${{ secrets.STAGING_DEPLOY_PATH }}
+
+      - name: Set file permissions on server
+        run: |
+          ssh -p ${{ secrets.HOSTINGER_SSH_PORT }} \
+            ${{ secrets.HOSTINGER_SSH_USER }}@${{ secrets.HOSTINGER_SSH_HOST }} \
+            "chmod -R 755 ${{ secrets.STAGING_DEPLOY_PATH }}"
+
+      - name: Restart application
+        run: |
+          ssh -p ${{ secrets.HOSTINGER_SSH_PORT }} \
+            ${{ secrets.HOSTINGER_SSH_USER }}@${{ secrets.HOSTINGER_SSH_HOST }} \
+            "cd ${{ secrets.STAGING_DEPLOY_PATH }} && chmod +x restart.sh && bash restart.sh"
+
+      - name: Verify deployment
+        run: |
+          echo "Waiting for application to start..."
+          sleep 10
+
+          # Check if site is accessible
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://staging.neutraldevelopment.com)
+          if [ $response -eq 200 ] || [ $response -eq 301 ] || [ $response -eq 302 ]; then
+            echo "✅ Staging deployment successful - Site is accessible"
+          else
+            echo "⚠️ Warning: Staging site returned HTTP $response"
+          fi
+
+      - name: Deployment summary
+        run: |
+          echo "🚀 Staging deployment completed successfully!"
+          echo "📦 Build: $(cat deploy/.next/BUILD_ID)"
+          echo "🌐 URL: https://staging.neutraldevelopment.com"
+          echo "⏰ Time: $(date)"

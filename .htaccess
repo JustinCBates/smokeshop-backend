@@ -1,0 +1,8 @@
+# Proxy all requests to Node.js via PHP
+RewriteEngine On
+
+# Don't proxy the PHP proxy file itself
+RewriteCond %{REQUEST_URI} !^/index\.php
+
+# Route everything through index.php
+RewriteRule ^(.*)$ index.php [L,QSA]

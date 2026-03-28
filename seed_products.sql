@@ -1,0 +1,27 @@
+-- Insert 24 products matching PRODUCT_IMAGE_LIST.md
+INSERT INTO public.products (sku, name, description, category, price, image_url, in_stock) VALUES
+('GLASS-001', 'Crystal Clear Beaker Bong', 'Premium 14" beaker bong with ice catcher and percolator. Thick borosilicate glass for durability.', 'glass-pipes-bongs', 79.99, '/images/products/GLASS-001.jpg', true),
+('GLASS-002', 'Emerald Spoon Pipe', 'Hand-blown 4.5" spoon pipe with deep emerald green swirl pattern.', 'glass-pipes-bongs', 24.99, '/images/products/GLASS-002.jpg', true),
+('GLASS-003', 'Mini Bubbler', 'Compact 6" bubbler with built-in downstem. Perfect for smooth on-the-go hits.', 'glass-pipes-bongs', 34.99, '/images/products/GLASS-003.jpg', true),
+('GLASS-004', 'Quartz Dab Rig', '8" recycler dab rig with quartz banger included. Medical-grade borosilicate.', 'glass-pipes-bongs', 129.99, '/images/products/GLASS-004.jpg', true),
+('VAPE-001', 'Cloud Chaser Pen', 'Sleek variable voltage vape pen. 510 thread compatible. USB-C charging.', 'vapes-e-cigarettes', 29.99, '/images/products/VAPE-001.jpg', true),
+('VAPE-002', 'Ceramic Cartridge 1g', '1 gram empty ceramic cartridge. Lead-free, food-grade materials.', 'vapes-e-cigarettes', 9.99, '/images/products/VAPE-002.jpg', true),
+('VAPE-003', 'Box Mod 200W', 'Dual 18650 box mod with temperature control. OLED display.', 'vapes-e-cigarettes', 59.99, '/images/products/VAPE-003.jpg', true),
+('VAPE-004', 'Mango E-Liquid 60ml', 'Premium mango-flavored e-liquid. 70/30 VG/PG. Available in 3mg and 6mg nicotine.', 'vapes-e-cigarettes', 19.99, '/images/products/VAPE-004.jpg', true),
+('ROLL-001', 'RAW Classic King Size', 'Unrefined, unbleached king size rolling papers. 32 leaves per pack.', 'rolling-papers-wraps', 3.99, '/images/products/ROLL-001.jpg', true),
+('ROLL-002', 'Hemp Blunt Wraps 2-Pack', 'Organic hemp blunt wraps. Slow-burning with natural flavor.', 'rolling-papers-wraps', 2.99, '/images/products/ROLL-002.jpg', true),
+('ROLL-003', 'Pre-Rolled Cones 6-Pack', 'King size pre-rolled cones. Just fill and twist. No rolling skill needed.', 'rolling-papers-wraps', 5.99, '/images/products/ROLL-003.jpg', true),
+('ROLL-004', 'Bamboo Rolling Tray', 'Premium bamboo rolling tray with magnetic lid. 7x11 inches.', 'rolling-papers-wraps', 24.99, '/images/products/ROLL-004.jpg', true),
+('ACC-001', '4-Piece Herb Grinder', 'Aircraft-grade aluminum 4-piece grinder with kief catcher. 2.5" diameter.', 'accessories', 19.99, '/images/products/ACC-001.jpg', true),
+('ACC-002', 'Torch Lighter', 'Refillable butane torch lighter with adjustable flame. Wind resistant.', 'accessories', 14.99, '/images/products/ACC-002.jpg', true),
+('ACC-003', 'Smell-Proof Stash Jar', 'UV-protected glass stash jar with airtight silicone seal. 4oz capacity.', 'accessories', 12.99, '/images/products/ACC-003.jpg', true),
+('ACC-004', 'Silicone Ashtray', 'Heat-resistant silicone ashtray with built-in snuffer. Unbreakable design.', 'accessories', 8.99, '/images/products/ACC-004.jpg', true),
+('CBD-001', 'CBD Gummies 30ct', 'Full-spectrum CBD gummies. 25mg per gummy. Mixed fruit flavors.', 'cbd-delta-products', 39.99, '/images/products/CBD-001.jpg', true),
+('CBD-002', 'Delta-8 Cartridge 1g', '1 gram Delta-8 THC cartridge. Strain-specific terpenes. Lab tested.', 'cbd-delta-products', 29.99, '/images/products/CBD-002.jpg', true),
+('CBD-003', 'CBD Tincture 1000mg', 'Organic CBD oil tincture. 1000mg in 30ml dropper bottle. Natural flavor.', 'cbd-delta-products', 49.99, '/images/products/CBD-003.jpg', true),
+('CBD-004', 'CBD Flower 3.5g', 'Premium indoor-grown CBD flower. Under 0.3% THC. Multiple strains available.', 'cbd-delta-products', 24.99, '/images/products/CBD-004.jpg', false),
+('CANN-001', 'OG Kush - Indica 3.5g', 'Classic OG Kush. Dense, trichome-rich buds. Earthy pine aroma.', 'cannabis-flower', 39.99, '/images/products/CANN-001.jpg', false),
+('CANN-002', 'Sour Diesel - Sativa 3.5g', 'Energizing Sour Diesel. Pungent diesel aroma with citrus undertones.', 'cannabis-flower', 44.99, '/images/products/CANN-002.jpg', false),
+('CANN-003', 'Blue Dream - Hybrid 3.5g', 'Balanced Blue Dream hybrid. Sweet berry aroma. Smooth smoke.', 'cannabis-flower', 42.99, '/images/products/CANN-003.jpg', false),
+('CANN-004', 'Pre-Roll Pack 5ct', 'Assorted pre-rolls. 0.5g each. Mix of indica and sativa strains.', 'cannabis-flower', 29.99, '/images/products/CANN-004.jpg', false)
+ON CONFLICT (sku) DO NOTHING;

@@ -1,0 +1,37 @@
+# Development Environment - Debian with Node.js
+FROM debian:bookworm-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    ca-certificates \
+    gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20.x LTS
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pnpm globally
+RUN npm install -g pnpm
+
+# Verify installations
+RUN node --version && npm --version && pnpm --version
+
+# Create a non-root user
+RUN useradd -m -s /bin/bash developer && \
+    chown -R developer:developer /app
+
+# Switch to non-root user
+USER developer
+
+# Expose Next.js default port
+EXPOSE 3000
+
+# Default command
+CMD ["/bin/bash"]

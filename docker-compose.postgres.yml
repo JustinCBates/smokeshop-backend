@@ -1,0 +1,32 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgis/postgis:17-3.5
+    container_name: smokeshop_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: smokeshop
+      POSTGRES_USER: smokeshop_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smokeshop_user -d smokeshop"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smokeshop_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  smokeshop_network:
+    driver: bridge

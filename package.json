@@ -1,0 +1,52 @@
+{
+  "name": "generic-smokeshop",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "node server.js",
+    "start:next": "next start",
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "type-check": "tsc --noEmit",
+    "check-all": "npm run type-check && npm run lint",
+    "migrate": "node scripts/run-migrations.js",
+    "setup": "node scripts/run-migrations.js && npm run build"
+  },
+  "dependencies": {
+    "@paypal/react-paypal-js": "latest",
+    "@supabase/ssr": "latest",
+    "@supabase/supabase-js": "latest",
+    "@turf/boolean-point-in-polygon": "latest",
+    "@turf/helpers": "latest",
+    "@types/leaflet": "latest",
+    "class-variance-authority": "latest",
+    "clsx": "latest",
+    "leaflet": "latest",
+    "lucide-react": "latest",
+    "next": "^15",
+    "pg": "^8.11.3",
+    "react": "^19",
+    "react-dom": "^19",
+    "react-leaflet": "latest",
+    "swagger-ui-react": "^5.17.14",
+    "server-only": "latest",
+    "swr": "latest",
+    "tailwind-merge": "latest",
+    "tailwindcss": "^3"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/pg": "^8.11.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10",
+    "eslint": "^8",
+    "eslint-config-next": "^15",
+    "@typescript-eslint/eslint-plugin": "^7",
+    "@typescript-eslint/parser": "^7",
+    "postcss": "^8",
+    "typescript": "^5"
+  }
+}
