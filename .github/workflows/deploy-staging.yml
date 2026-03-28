@@ -47,12 +47,12 @@ jobs:
           cp -r .next deploy/
           cp -r app deploy/
           cp -r lib deploy/
-          cp -r public deploy/
+          if [ -d public ]; then cp -r public deploy/; fi
           cp -r node_modules deploy/
           cp package.json deploy/
           cp next.config.mjs deploy/
           cp tsconfig.json deploy/
-          cp middleware.ts deploy/
+          if [ -f middleware.ts ]; then cp middleware.ts deploy/; fi
           cp server.js deploy/
           cp restart.sh deploy/
           cp check-deployment.sh deploy/
