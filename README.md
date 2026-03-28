@@ -1,24 +1,24 @@
-# Smokeshop - E-commerce Platform
+# Smokeshop Backend
 
-A modern e-commerce platform for a smokeshop built with Next.js, Supabase (PostgreSQL + PostGIS), and Stripe payments.
+Backend application and database bootstrap for the Smokeshop platform.
 
-## Features
+## Current Database Baseline
 
-- 🛍️ **Product Catalog**: Browse and search products
-- 📍 **Location-Based Services**: PostGIS integration for delivery zones and pickup locations
-- 🔐 **User Authentication**: Secure auth powered by Supabase
-- 💳 **Payment Processing**: Stripe integration for secure payments
-- 🚚 **Delivery & Pickup**: Support for both delivery and in-store pickup
-- ✅ **Age Verification**: Built-in age verification system
-- 📱 **Responsive Design**: Works on desktop, tablet, and mobile
+The self-hosted PostgreSQL container is intentionally bootstrapped with only:
+
+- `postgis`, `pgcrypto`, and `citext` extensions
+- `auth.users`
+- `auth.identities`
+- `auth.sessions`
+- `public.profiles`
+
+No product, order, inventory, or delivery tables are created by default.
 
 ## Tech Stack
 
 - **Framework**: Next.js 15 (React 19)
-- **Database**: Supabase (PostgreSQL + PostGIS)
-- **Payments**: Stripe
-- **Styling**: Tailwind CSS 4
-- **Maps**: Leaflet
+- **Database**: Self-hosted PostgreSQL + PostGIS
+- **Auth code**: Transitional Supabase-based application layer
 - **Language**: TypeScript
 
 ## Quick Start
@@ -50,15 +50,12 @@ A modern e-commerce platform for a smokeshop built with Next.js, Supabase (Postg
    cp .env.example .env.local
    ```
 
-   Edit `.env.local` with your credentials:
-   - Supabase URL and anon key
-   - Stripe secret and publishable keys
-   - Your local site URL
+   Edit `.env.local` with your credentials.
 
-4. **Set up Supabase database**
-   - Create a new Supabase project
-   - Run the migration scripts in `scripts/` directory (in order)
-   - Or run `scripts/000_run_all.sql` in the SQL Editor
+4. **Set up local/VPS PostgreSQL baseline**
+   - Prepare `.env.postgres.local` with `POSTGRES_PASSWORD`
+   - Run `pnpm db:recreate`
+   - Or start the container manually with `docker compose -f docker-compose.postgres.yml --env-file .env.postgres.local up -d`
 
 5. **Run the development server**
 
@@ -71,55 +68,45 @@ A modern e-commerce platform for a smokeshop built with Next.js, Supabase (Postg
 
 ## Database Setup
 
-The project includes SQL migration scripts in the `scripts/` directory:
+The only automatic bootstrap file is [db/init/001_identity_baseline.sql](db/init/001_identity_baseline.sql).
 
-1. `001_enable_postgis.sql` - Enable PostGIS extension
-2. `002_create_products.sql` - Products table
-3. `003_create_regions.sql` - Delivery regions (with PostGIS geometry)
-4. `004_create_region_inventory.sql` - Regional inventory
-5. `005_create_pickup_locations.sql` - Pickup locations
-6. `006_create_pickup_inventory.sql` - Pickup inventory
-7. `007_create_delivery_fee_tiers.sql` - Delivery pricing
-8. `008_create_delivery_slots.sql` - Delivery time slots
-9. `009_create_profiles.sql` - User profiles
-10. `009b_profiles_rls.sql` - Row Level Security for profiles
-11. `009c_profiles_trigger.sql` - Profile triggers
-12. `010_create_orders.sql` - Orders table
-13. `011_create_order_items.sql` - Order items
-14. `012_create_storage_bucket.sql` - File storage
-15. `013_seed_sample_data.sql` - Sample data
+It creates:
 
-Run them in order in your Supabase SQL Editor, or execute `000_run_all.sql`.
+- PostGIS support
+- `auth.users`
+- `auth.identities`
+- `auth.sessions`
+- `public.profiles`
+- helper functions/triggers for profile synchronization and `updated_at`
+
+To rebuild from scratch, run:
+
+```bash
+pnpm db:recreate
+```
 
 ## Deployment
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions on deploying to Hostinger with Supabase and Stripe integration.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for deployment details.
 
 ### Quick Deployment Steps
 
-1. Set up Supabase project and run migrations
-2. Configure Stripe account
+1. Recreate the PostgreSQL container if needed
+2. Set application environment variables
 3. Upload code to Hostinger
-4. Set environment variables
-5. Build and start the application
+4. Build and start the application
 
 ## Project Structure
 
 ```
 ├── app/                    # Next.js app directory
-│   ├── api/               # API routes
-│   ├── auth/              # Authentication pages
-│   ├── shop/              # Shop pages
+│   ├── api/              # API routes
 │   └── ...
-├── components/            # React components
-│   ├── layout/           # Layout components
-│   ├── modals/           # Modal dialogs
-│   └── shop/             # Shop-specific components
-├── lib/                   # Utility libraries
-│   ├── supabase/         # Supabase client configuration
-│   ├── age-verification/ # Age verification logic
+├── db/init/              # Docker bootstrap SQL
+├── lib/                  # Utility libraries
+│   ├── supabase/         # Transitional auth/session code
 │   └── ...
-├── scripts/               # Database migration scripts
+├── scripts/              # Database utilities and legacy migrations
 ├── server.js             # Custom server for Hostinger
 ├── ecosystem.config.js   # PM2 configuration
 └── DEPLOYMENT.md         # Deployment guide
@@ -127,14 +114,12 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions on deploying to Hos
 
 ## Environment Variables
 
-Required environment variables (see `.env.example`):
+Relevant environment variables:
 
-- `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anonymous key
-- `STRIPE_SECRET_KEY` - Stripe secret key
-- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Stripe publishable key
-- `NEXT_PUBLIC_SITE_URL` - Your site URL
-- `AGE_VERIFICATION_PROVIDER` - Age verification method (dob-photo or third-party)
+- `DATABASE_URL` - PostgreSQL connection string for app/runtime access
+- `POSTGRES_PASSWORD` - Used by the Dockerized PostgreSQL container
+- `NEXT_PUBLIC_SITE_URL` - Site URL
+- `AGE_VERIFICATION_PROVIDER` - Age verification method
 
 ## Scripts
 
@@ -142,6 +127,8 @@ Required environment variables (see `.env.example`):
 - `pnpm build` - Build for production
 - `pnpm start` - Start production server
 - `pnpm lint` - Run ESLint
+- `pnpm migrate` - Apply the identity baseline to an existing PostgreSQL database
+- `pnpm db:recreate` - Recreate the Dockerized PostgreSQL database from scratch
 
 ## Contributing
 
@@ -160,10 +147,4 @@ This project is private and proprietary.
 For issues and questions:
 
 - Check [DEPLOYMENT.md](DEPLOYMENT.md) for deployment help
-- Review Supabase documentation: https://supabase.com/docs
-- Review Stripe documentation: https://stripe.com/docs
 - Review Next.js documentation: https://nextjs.org/docs
-
----
-
-Built with ❤️ using Next.js, Supabase, and Stripe

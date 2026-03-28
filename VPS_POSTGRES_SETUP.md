@@ -2,13 +2,13 @@
 
 ## Overview
 
-This guide sets up PostgreSQL with PostGIS extension in a Docker container on your VPS (srv1407636.hstgr.cloud).
+This guide recreates PostgreSQL with PostGIS in a Docker container on your VPS (srv1407636.hstgr.cloud) and initializes only the identity-management baseline.
 
 ## Prerequisites
 
 - Docker and Docker Compose installed on VPS
 - SSH access to VPS
-- Migration scripts in `scripts/` directory
+- Bootstrap SQL in `db/init/`
 
 ## Step 1: Check Docker on VPS
 
@@ -40,7 +40,11 @@ scp -i C:\Users\justi\.ssh\id_ed25519_vps -P 22022 `
   docker-compose.postgres.yml `
   opsdf55jrdjxsadgh@srv1407636.hstgr.cloud:~/smokeshop/
 
-# Copy scripts directory
+# Copy bootstrap SQL and scripts directory
+scp -i C:\Users\justi\.ssh\id_ed25519_vps -P 22022 -r `
+  db `
+  opsdf55jrdjxsadgh@srv1407636.hstgr.cloud:~/smokeshop/
+
 scp -i C:\Users\justi\.ssh\id_ed25519_vps -P 22022 -r `
   scripts `
   opsdf55jrdjxsadgh@srv1407636.hstgr.cloud:~/smokeshop/
@@ -72,11 +76,11 @@ EOF
 chmod 600 .env.postgres.local
 ```
 
-## Step 4: Start PostgreSQL Container
+## Step 4: Recreate PostgreSQL Container From Scratch
 
 ```bash
-# Start container
-docker-compose -f docker-compose.postgres.yml --env-file .env.postgres.local up -d
+# Recreate database volume and start container
+bash scripts/recreate-identity-db.sh .env.postgres.local
 
 # Check status
 docker ps
@@ -86,21 +90,19 @@ docker logs smokeshop_postgres
 docker exec smokeshop_postgres psql -U smokeshop_user -d smokeshop -c "SELECT PostGIS_Version();"
 ```
 
-## Step 5: Run Migration Scripts
+## Step 5: Verify Only Identity Tables Exist
 
-The `000_full_migration.sql` script will be automatically executed on first container start from the `/docker-entrypoint-initdb.d` mount.
+The Docker container now mounts only `db/init/` into `/docker-entrypoint-initdb.d`, so a fresh volume initializes only the identity baseline.
 
-To manually run migrations:
+Verify the schema:
 
 ```bash
-# Copy migration script into container and execute
-docker exec -i smokeshop_postgres psql -U smokeshop_user -d smokeshop < scripts/000_full_migration.sql
+# Verify auth and profile tables only
+docker exec smokeshop_postgres psql -U smokeshop_user -d smokeshop -c "\dt auth.*"
+docker exec smokeshop_postgres psql -U smokeshop_user -d smokeshop -c "\dt public.*"
 
-# Verify tables created
-docker exec smokeshop_postgres psql -U smokeshop_user -d smokeshop -c "\dt"
-
-# Check products table
-docker exec smokeshop_postgres psql -U smokeshop_user -d smokeshop -c "SELECT COUNT(*) FROM products;"
+# Apply the same baseline manually to an existing database if needed
+node scripts/run-migrations.js
 ```
 
 ## Step 6: Configure Firewall (if needed)
@@ -213,8 +215,8 @@ docker-compose -f docker-compose.postgres.yml --env-file .env.postgres.local up 
 
 ## Next Steps
 
-1. Update application `.env` with DATABASE_URL
-2. Test connection from application
-3. Seed sample data if needed
+1. Update application `.env` with `DATABASE_URL`
+2. Decide how application auth will move off Supabase clients onto these tables
+3. Add non-identity tables back only when their schema is ready
 4. Set up regular backups
 5. Monitor database performance
