@@ -42,11 +42,12 @@ jobs:
         id: build
         run: pnpm build
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          COINBASE_COMMERCE_API_KEY: ${{ secrets.COINBASE_COMMERCE_API_KEY }}
-          COINBASE_WEBHOOK_SECRET: ${{ secrets.COINBASE_WEBHOOK_SECRET }}
-          NEXT_PUBLIC_SITE_URL: https://thcdeliveryguy.com
+          DATABASE_URL: ${{ secrets.SMOKESHOP_DATABASE_URL }}
+          INVENTORY_MANAGER_EMAILS: ${{ secrets.INVENTORY_MANAGER_EMAILS }}
+          CLOVER_ACCESS_TOKEN: ${{ secrets.CLOVER_ACCESS_TOKEN }}
+          CLOVER_MERCHANT_ID: ${{ secrets.CLOVER_MERCHANT_ID }}
+          NEXT_PUBLIC_SITE_URL: https://neutraldevelopment.com
+          AGE_VERIFICATION_PROVIDER: dob-photo
 
       - name: PR Check Summary
         if: always()
