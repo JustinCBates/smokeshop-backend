@@ -31,11 +31,10 @@ jobs:
         run: pnpm build
         env:
           NODE_ENV: production
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           DATABASE_URL: ${{ secrets.SMOKESHOP_DATABASE_URL }}
           INVENTORY_MANAGER_EMAILS: ${{ secrets.INVENTORY_MANAGER_EMAILS }}
-          COINBASE_COMMERCE_API_KEY: ${{ secrets.COINBASE_COMMERCE_API_KEY }}
+          CLOVER_ACCESS_TOKEN: ${{ secrets.CLOVER_ACCESS_TOKEN }}
+          CLOVER_MERCHANT_ID: ${{ secrets.CLOVER_MERCHANT_ID }}
           NEXT_PUBLIC_SITE_URL: https://neutraldevelopment.com
           AGE_VERIFICATION_PROVIDER: dob-photo
 
@@ -64,12 +63,11 @@ jobs:
 
           #Create .env.production
           echo "NODE_ENV=production" > deploy/.env.production
-          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> deploy/.env.production
-          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> deploy/.env.production
           echo "DATABASE_URL=${{ secrets.SMOKESHOP_DATABASE_URL }}" >> deploy/.env.production
           echo "INVENTORY_MANAGER_EMAILS=${{ secrets.INVENTORY_MANAGER_EMAILS }}" >> deploy/.env.production
-          echo "COINBASE_COMMERCE_API_KEY=${{ secrets.COINBASE_COMMERCE_API_KEY }}" >> deploy/.env.production
-          echo "COINBASE_WEBHOOK_SECRET=${{ secrets.COINBASE_WEBHOOK_SECRET }}" >> deploy/.env.production
+          echo "CLOVER_ACCESS_TOKEN=${{ secrets.CLOVER_ACCESS_TOKEN }}" >> deploy/.env.production
+          echo "CLOVER_MERCHANT_ID=${{ secrets.CLOVER_MERCHANT_ID }}" >> deploy/.env.production
+          echo "CLOVER_WEBHOOK_SECRET=${{ secrets.CLOVER_WEBHOOK_SECRET }}" >> deploy/.env.production
           echo "NEXT_PUBLIC_SITE_URL=https://neutraldevelopment.com" >> deploy/.env.production
           echo "AGE_VERIFICATION_PROVIDER=dob-photo" >> deploy/.env.production
           echo "PORT=3000" >> deploy/.env.production
@@ -77,29 +75,28 @@ jobs:
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.HOSTINGER_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p ${{ secrets.HOSTINGER_SSH_PORT }} -H ${{ secrets.HOSTINGER_SSH_HOST }} >> ~/.ssh/known_hosts
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p ${{ secrets.VPS_SSH_PORT }} -H ${{ secrets.VPS_SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy to Hostinger
+      - name: Deploy to VPS
         run: |
-          # Sync files to Hostinger
           rsync -avz --delete \
-            -e "ssh -p ${{ secrets.HOSTINGER_SSH_PORT }}" \
+            -e "ssh -i ~/.ssh/id_ed25519 -p ${{ secrets.VPS_SSH_PORT }}" \
             deploy/ \
-            ${{ secrets.HOSTINGER_SSH_USER }}@${{ secrets.HOSTINGER_SSH_HOST }}:${{ secrets.HOSTINGER_DEPLOY_PATH }}
+            ${{ secrets.VPS_SSH_USER }}@${{ secrets.VPS_SSH_HOST }}:/opt/smokeshop/smokeshop-backend/
 
       - name: Set file permissions on server
         run: |
-          ssh -p ${{ secrets.HOSTINGER_SSH_PORT }} \
-            ${{ secrets.HOSTINGER_SSH_USER }}@${{ secrets.HOSTINGER_SSH_HOST }} \
-            "chmod -R 755 ${{ secrets.HOSTINGER_DEPLOY_PATH }}"
+          ssh -i ~/.ssh/id_ed25519 -p ${{ secrets.VPS_SSH_PORT }} \
+            ${{ secrets.VPS_SSH_USER }}@${{ secrets.VPS_SSH_HOST }} \
+            "chmod -R 755 /opt/smokeshop/smokeshop-backend"
 
       - name: Restart application
         run: |
-          ssh -p ${{ secrets.HOSTINGER_SSH_PORT }} \
-            ${{ secrets.HOSTINGER_SSH_USER }}@${{ secrets.HOSTINGER_SSH_HOST }} \
-            "cd ${{ secrets.HOSTINGER_DEPLOY_PATH }} && chmod +x restart.sh && bash restart.sh"
+          ssh -i ~/.ssh/id_ed25519 -p ${{ secrets.VPS_SSH_PORT }} \
+            ${{ secrets.VPS_SSH_USER }}@${{ secrets.VPS_SSH_HOST }} \
+            "cd /opt/smokeshop/smokeshop-backend && chmod +x restart.sh && bash restart.sh"
 
       - name: Verify deployment
         run: |
