@@ -46,14 +46,13 @@ jobs:
           # Copy built application and dependencies from CI
           cp -r .next deploy/
           cp -r app deploy/
-          cp -r components deploy/
           cp -r lib deploy/
-          cp -r public deploy/
+          if [ -d public ]; then cp -r public deploy/; fi
           cp -r node_modules deploy/
           cp package.json deploy/
           cp next.config.mjs deploy/
           cp tsconfig.json deploy/
-          cp middleware.ts deploy/
+          if [ -f middleware.ts ]; then cp middleware.ts deploy/; fi
           cp server.js deploy/
           cp restart.sh deploy/
           cp check-deployment.sh deploy/
@@ -68,6 +67,7 @@ jobs:
           echo "CLOVER_ACCESS_TOKEN=${{ secrets.CLOVER_ACCESS_TOKEN }}" >> deploy/.env.production
           echo "CLOVER_MERCHANT_ID=${{ secrets.CLOVER_MERCHANT_ID }}" >> deploy/.env.production
           echo "CLOVER_WEBHOOK_SECRET=${{ secrets.CLOVER_WEBHOOK_SECRET }}" >> deploy/.env.production
+          echo "ADMIN_API_SECRET=${{ secrets.ADMIN_API_SECRET }}" >> deploy/.env.production
           echo "NEXT_PUBLIC_SITE_URL=https://neutraldevelopment.com" >> deploy/.env.production
           echo "AGE_VERIFICATION_PROVIDER=dob-photo" >> deploy/.env.production
           echo "PORT=3000" >> deploy/.env.production
