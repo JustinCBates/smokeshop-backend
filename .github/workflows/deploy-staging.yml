@@ -75,6 +75,7 @@ jobs:
           echo "CLOVER_ACCESS_TOKEN=${{ secrets.CLOVER_ACCESS_TOKEN }}" >> deploy/.env.production
           echo "CLOVER_MERCHANT_ID=${{ secrets.CLOVER_MERCHANT_ID }}" >> deploy/.env.production
           echo "CLOVER_WEBHOOK_SECRET=${{ secrets.CLOVER_WEBHOOK_SECRET }}" >> deploy/.env.production
+          echo "ADMIN_API_SECRET=${{ secrets.ADMIN_API_SECRET }}" >> deploy/.env.production
           echo "NEXT_PUBLIC_SITE_URL=https://staging.neutraldevelopment.com" >> deploy/.env.production
           echo "AGE_VERIFICATION_PROVIDER=dob-photo" >> deploy/.env.production
           echo "PORT=3001" >> deploy/.env.production
