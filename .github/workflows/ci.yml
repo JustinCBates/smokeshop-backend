@@ -1,3 +1,5 @@
+
+# CI - Build & Test
 name: CI - Build & Test
 
 on:
@@ -31,6 +33,7 @@ jobs:
       - name: Run linter
         run: pnpm lint
 
+
       - name: Build application
         run: pnpm build
         env:
@@ -38,6 +41,7 @@ jobs:
           INVENTORY_MANAGER_EMAILS: ${{ secrets.INVENTORY_MANAGER_EMAILS }}
           CLOVER_ACCESS_TOKEN: ${{ secrets.CLOVER_ACCESS_TOKEN }}
           CLOVER_MERCHANT_ID: ${{ secrets.CLOVER_MERCHANT_ID }}
+          CLOVER_WEBHOOK_SECRET: ${{ secrets.CLOVER_WEBHOOK_SECRET }}
           NEXT_PUBLIC_SITE_URL: https://neutraldevelopment.com
           AGE_VERIFICATION_PROVIDER: dob-photo
 
