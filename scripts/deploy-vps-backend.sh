@@ -44,7 +44,8 @@ rsync -avz --delete --prune-empty-dirs \
   ./ "$VPS_USER@$VPS_HOST:$VPS_APP_DIR/"
 
 echo "Preparing environment files, Caddy routes, and starting containers..."
-ssh -i "$VPS_SSH_KEY" -p "$VPS_PORT" -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" "CADDYFILE_PATH='$CADDYFILE_PATH' VPS_APP_DIR='$VPS_APP_DIR' bash -s" <<'EOF'
+ssh -i "$VPS_SSH_KEY" -p "$VPS_PORT" -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" \
+  "CADDYFILE_PATH='$CADDYFILE_PATH' VPS_APP_DIR='$VPS_APP_DIR' SMOKESHOP_DATABASE_URL='${SMOKESHOP_DATABASE_URL:-}' CLOVER_APP_ID='${CLOVER_APP_ID:-}' CLOVER_APP_SECRET='${CLOVER_APP_SECRET:-}' CLOVER_ACCESS_TOKEN='${CLOVER_ACCESS_TOKEN:-}' CLOVER_MERCHANT_ID='${CLOVER_MERCHANT_ID:-}' CLOVER_WEBHOOK_SECRET='${CLOVER_WEBHOOK_SECRET:-}' CLOVER_OAUTH_BASE_URL='${CLOVER_OAUTH_BASE_URL:-https://www.clover.com}' CLOVER_API_BASE_URL='${CLOVER_API_BASE_URL:-https://api.clover.com}' CLOVER_REDIRECT_URI='${CLOVER_REDIRECT_URI:-}' bash -s" <<'EOF'
 set -euo pipefail
 
 cd "$VPS_APP_DIR"
@@ -99,7 +100,19 @@ elif [ -n "${SMOKESHOP_DATABASE_URL:-}" ]; then
   sed -i "s|^DATABASE_URL=.*|DATABASE_URL=${SMOKESHOP_DATABASE_URL}|" .env.vps.staging
 fi
 
-if ! grep -q "api.neutraldevelopment.com" "$CADDYFILE_PATH"; then
+# Inject Clover secrets on every deploy
+for key in CLOVER_APP_ID CLOVER_APP_SECRET CLOVER_ACCESS_TOKEN CLOVER_MERCHANT_ID CLOVER_WEBHOOK_SECRET CLOVER_OAUTH_BASE_URL CLOVER_API_BASE_URL CLOVER_REDIRECT_URI; do
+  eval val="\${${key}:-}"
+  if [ -n "$val" ]; then
+    for envfile in .env.vps.production .env.vps.staging; do
+      if grep -q "^${key}=" "$envfile" 2>/dev/null; then
+        sed -i "s|^${key}=.*|${key}=${val}|" "$envfile"
+      else
+        echo "${key}=${val}" >> "$envfile"
+      fi
+    done
+  fi
+done
 cat >> "$CADDYFILE_PATH" <<"CADDY_EOF"
 
 api.neutraldevelopment.com {
