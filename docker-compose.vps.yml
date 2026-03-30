@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  backend_prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: smokeshop_backend_prod
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env.vps.production
+    ports:
+      - "3202:3000"
+    networks:
+      - smokeshop_network
+
+  backend_staging:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: smokeshop_backend_staging
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env.vps.staging
+    ports:
+      - "3203:3000"
+    networks:
+      - smokeshop_network
+
+networks:
+  smokeshop_network:
+    driver: bridge
