@@ -20,7 +20,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -p ${{ secrets.VPS_SSH_PORT }} -H ${{ secrets.VPS_SSH_HOST }} >> ~/.ssh/known_hosts
+          echo "${{ secrets.VPS_SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
 
       - name: Deploy to VPS
         run: |
@@ -31,6 +31,14 @@ jobs:
           VPS_APP_DIR="/opt/smokeshop/smokeshop-backend" \
           CADDYFILE_PATH="/opt/patriotic-projects/vscode-proxy/Caddyfile" \
           SMOKESHOP_DATABASE_URL="${{ secrets.SMOKESHOP_DATABASE_URL }}" \
+          CLOVER_APP_ID="${{ secrets.CLOVER_APP_ID }}" \
+          CLOVER_APP_SECRET="${{ secrets.CLOVER_APP_SECRET }}" \
+          CLOVER_ACCESS_TOKEN="${{ secrets.CLOVER_ACCESS_TOKEN }}" \
+          CLOVER_MERCHANT_ID="${{ secrets.CLOVER_MERCHANT_ID }}" \
+          CLOVER_WEBHOOK_SECRET="${{ secrets.CLOVER_WEBHOOK_SECRET }}" \
+          CLOVER_OAUTH_BASE_URL="${{ secrets.CLOVER_OAUTH_BASE_URL }}" \
+          CLOVER_API_BASE_URL="${{ secrets.CLOVER_API_BASE_URL }}" \
+          CLOVER_REDIRECT_URI="${{ secrets.CLOVER_REDIRECT_URI }}" \
           bash scripts/deploy-vps-backend.sh
 
       - name: Verify deployment
