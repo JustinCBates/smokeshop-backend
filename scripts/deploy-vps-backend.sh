@@ -50,6 +50,20 @@ set -euo pipefail
 
 cd "$VPS_APP_DIR"
 
+upsert_env_value() {
+  local key="$1"
+  local value="$2"
+  local file="$3"
+  local tmp_file
+
+  tmp_file="$(mktemp)"
+  if [ -f "$file" ]; then
+    grep -v "^${key}=" "$file" > "$tmp_file" || true
+  fi
+  printf '%s=%s\n' "$key" "$value" >> "$tmp_file"
+  mv "$tmp_file" "$file"
+}
+
 if [ ! -f .env.vps.production ]; then
   if [ -f .env.vps.production.example ]; then
     cp .env.vps.production.example .env.vps.production
@@ -93,26 +107,25 @@ fi
 
 if [ -n "$DB_PASS" ]; then
   DB_PASS_ENCODED=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=""))' "$DB_PASS")
-  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=postgresql://smokeshop_user:${DB_PASS_ENCODED}@host.docker.internal:5432/smokeshop|" .env.vps.production
-  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=postgresql://smokeshop_user:${DB_PASS_ENCODED}@host.docker.internal:5432/smokeshop|" .env.vps.staging
+  for envfile in .env.vps.production .env.vps.staging; do
+    upsert_env_value "DATABASE_URL" "postgresql://smokeshop_user:${DB_PASS_ENCODED}@host.docker.internal:5432/smokeshop" "$envfile"
+  done
 elif [ -n "${SMOKESHOP_DATABASE_URL:-}" ]; then
-  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=${SMOKESHOP_DATABASE_URL}|" .env.vps.production
-  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=${SMOKESHOP_DATABASE_URL}|" .env.vps.staging
+  for envfile in .env.vps.production .env.vps.staging; do
+    upsert_env_value "DATABASE_URL" "${SMOKESHOP_DATABASE_URL}" "$envfile"
+  done
 fi
 
-# Inject Clover secrets on every deploy
 for key in CLOVER_APP_ID CLOVER_APP_SECRET CLOVER_ACCESS_TOKEN CLOVER_MERCHANT_ID CLOVER_WEBHOOK_SECRET CLOVER_OAUTH_BASE_URL CLOVER_API_BASE_URL CLOVER_REDIRECT_URI; do
-  eval val="\${${key}:-}"
+  eval "val=\${${key}:-}"
   if [ -n "$val" ]; then
     for envfile in .env.vps.production .env.vps.staging; do
-      if grep -q "^${key}=" "$envfile" 2>/dev/null; then
-        sed -i "s|^${key}=.*|${key}=${val}|" "$envfile"
-      else
-        echo "${key}=${val}" >> "$envfile"
-      fi
+      upsert_env_value "$key" "$val" "$envfile"
     done
   fi
 done
+
+if ! grep -q "api.neutraldevelopment.com" "$CADDYFILE_PATH"; then
 cat >> "$CADDYFILE_PATH" <<"CADDY_EOF"
 
 api.neutraldevelopment.com {
