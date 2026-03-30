@@ -44,10 +44,25 @@ rsync -avz --delete --prune-empty-dirs \
   ./ "$VPS_USER@$VPS_HOST:$VPS_APP_DIR/"
 
 echo "Preparing environment files, Caddy routes, and starting containers..."
-ssh -i "$VPS_SSH_KEY" -p "$VPS_PORT" -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" "CADDYFILE_PATH='$CADDYFILE_PATH' VPS_APP_DIR='$VPS_APP_DIR' bash -s" <<'EOF'
+ssh -i "$VPS_SSH_KEY" -p "$VPS_PORT" -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" \
+  "CADDYFILE_PATH='$CADDYFILE_PATH' VPS_APP_DIR='$VPS_APP_DIR' SMOKESHOP_DATABASE_URL='${SMOKESHOP_DATABASE_URL:-}' CLOVER_APP_ID='${CLOVER_APP_ID:-}' CLOVER_APP_SECRET='${CLOVER_APP_SECRET:-}' CLOVER_ACCESS_TOKEN='${CLOVER_ACCESS_TOKEN:-}' CLOVER_MERCHANT_ID='${CLOVER_MERCHANT_ID:-}' CLOVER_WEBHOOK_SECRET='${CLOVER_WEBHOOK_SECRET:-}' CLOVER_OAUTH_BASE_URL='${CLOVER_OAUTH_BASE_URL:-https://www.clover.com}' CLOVER_API_BASE_URL='${CLOVER_API_BASE_URL:-https://api.clover.com}' CLOVER_REDIRECT_URI='${CLOVER_REDIRECT_URI:-}' bash -s" <<'EOF'
 set -euo pipefail
 
 cd "$VPS_APP_DIR"
+
+upsert_env_value() {
+  local key="$1"
+  local value="$2"
+  local file="$3"
+  local tmp_file
+
+  tmp_file="$(mktemp)"
+  if [ -f "$file" ]; then
+    grep -v "^${key}=" "$file" > "$tmp_file" || true
+  fi
+  printf '%s=%s\n' "$key" "$value" >> "$tmp_file"
+  mv "$tmp_file" "$file"
+}
 
 if [ ! -f .env.vps.production ]; then
   if [ -f .env.vps.production.example ]; then
@@ -92,12 +107,23 @@ fi
 
 if [ -n "$DB_PASS" ]; then
   DB_PASS_ENCODED=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=""))' "$DB_PASS")
-  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=postgresql://smokeshop_user:${DB_PASS_ENCODED}@host.docker.internal:5432/smokeshop|" .env.vps.production
-  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=postgresql://smokeshop_user:${DB_PASS_ENCODED}@host.docker.internal:5432/smokeshop|" .env.vps.staging
+  for envfile in .env.vps.production .env.vps.staging; do
+    upsert_env_value "DATABASE_URL" "postgresql://smokeshop_user:${DB_PASS_ENCODED}@host.docker.internal:5432/smokeshop" "$envfile"
+  done
 elif [ -n "${SMOKESHOP_DATABASE_URL:-}" ]; then
-  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=${SMOKESHOP_DATABASE_URL}|" .env.vps.production
-  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=${SMOKESHOP_DATABASE_URL}|" .env.vps.staging
+  for envfile in .env.vps.production .env.vps.staging; do
+    upsert_env_value "DATABASE_URL" "${SMOKESHOP_DATABASE_URL}" "$envfile"
+  done
 fi
+
+for key in CLOVER_APP_ID CLOVER_APP_SECRET CLOVER_ACCESS_TOKEN CLOVER_MERCHANT_ID CLOVER_WEBHOOK_SECRET CLOVER_OAUTH_BASE_URL CLOVER_API_BASE_URL CLOVER_REDIRECT_URI; do
+  eval "val=\${${key}:-}"
+  if [ -n "$val" ]; then
+    for envfile in .env.vps.production .env.vps.staging; do
+      upsert_env_value "$key" "$val" "$envfile"
+    done
+  fi
+done
 
 if ! grep -q "api.neutraldevelopment.com" "$CADDYFILE_PATH"; then
 cat >> "$CADDYFILE_PATH" <<"CADDY_EOF"
