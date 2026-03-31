@@ -4,6 +4,7 @@ set -euo pipefail
 
 VPS_USER="${VPS_USER:-opsdf55jrdjxsadgh}"
 VPS_HOST="${VPS_HOST:-srv1407636.hstgr.cloud}"
+VPS_FALLBACK_HOST="${VPS_FALLBACK_HOST:-187.77.212.203}"
 VPS_PORT="${VPS_PORT:-22022}"
 VPS_SSH_KEY="${VPS_SSH_KEY:-/tmp/id_ed25519_vps}"
 VPS_APP_DIR="${VPS_APP_DIR:-/opt/smokeshop/smokeshop-backend}"
@@ -48,6 +49,12 @@ retry_command() {
 echo "Syncing tracked backend files to VPS (excluding local artifacts)..."
 SYNC_LIST="$(mktemp)"
 trap 'rm -f "$SYNC_LIST"' EXIT
+RSYNC_SSH_CMD="ssh -4 -i $VPS_SSH_KEY -p $VPS_PORT -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -o ConnectionAttempts=1"
+
+DEPLOY_HOSTS=("$VPS_HOST")
+if [ "$VPS_FALLBACK_HOST" != "$VPS_HOST" ]; then
+  DEPLOY_HOSTS+=("$VPS_FALLBACK_HOST")
+fi
 
 # Only deploy tracked files from the working tree to avoid copying local artifacts.
 git -C "$(dirname "$0")/.." ls-files > "$SYNC_LIST"
@@ -59,13 +66,25 @@ for required in Dockerfile.prod docker-compose.vps.yml .env.vps.production.examp
   fi
 done
 
-retry_command 3 10 rsync -avz --delete --delete-missing-args --prune-empty-dirs \
-  -e "ssh -i $VPS_SSH_KEY -p $VPS_PORT -o StrictHostKeyChecking=accept-new" \
-  --files-from "$SYNC_LIST" \
-  ./ "$VPS_USER@$VPS_HOST:$VPS_APP_DIR/"
+ACTIVE_HOST=""
+for host in "${DEPLOY_HOSTS[@]}"; do
+  echo "Trying rsync to ${host}..."
+  if retry_command 6 10 rsync -avz --delete --delete-missing-args --prune-empty-dirs \
+    -e "$RSYNC_SSH_CMD" \
+    --files-from "$SYNC_LIST" \
+    ./ "$VPS_USER@$host:$VPS_APP_DIR/"; then
+    ACTIVE_HOST="$host"
+    break
+  fi
+done
+
+if [ -z "$ACTIVE_HOST" ]; then
+  echo "Unable to reach VPS over SSH using hosts: ${DEPLOY_HOSTS[*]}"
+  exit 1
+fi
 
 echo "Preparing environment files, Caddy routes, and starting containers..."
-retry_command 3 10 ssh -i "$VPS_SSH_KEY" -p "$VPS_PORT" -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" \
+retry_command 6 10 ssh -4 -i "$VPS_SSH_KEY" -p "$VPS_PORT" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -o ConnectionAttempts=1 "$VPS_USER@$ACTIVE_HOST" \
   "CADDYFILE_PATH='$CADDYFILE_PATH' VPS_APP_DIR='$VPS_APP_DIR' SMOKESHOP_DATABASE_URL='${SMOKESHOP_DATABASE_URL:-}' CLOVER_APP_ID='${CLOVER_APP_ID:-}' CLOVER_APP_SECRET='${CLOVER_APP_SECRET:-}' CLOVER_ACCESS_TOKEN='${CLOVER_ACCESS_TOKEN:-}' CLOVER_MERCHANT_ID='${CLOVER_MERCHANT_ID:-}' CLOVER_WEBHOOK_SECRET='${CLOVER_WEBHOOK_SECRET:-}' CLOVER_OAUTH_BASE_URL='${CLOVER_OAUTH_BASE_URL:-https://www.clover.com}' CLOVER_API_BASE_URL='${CLOVER_API_BASE_URL:-https://api.clover.com}' CLOVER_REDIRECT_URI='${CLOVER_REDIRECT_URI:-}' bash -s" <<'EOF'
 set -euo pipefail
 
