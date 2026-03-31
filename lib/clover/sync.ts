@@ -54,7 +54,7 @@ async function upsertMerchant(client: PoolClient, snapshot: CloverSyncSnapshot):
   const merchant = snapshot.merchant;
 
   const sql = `
-    INSERT INTO public.clover_merchants (
+    INSERT INTO clover.merchants (
       clover_merchant_id,
       merchant_name,
       country,
@@ -98,7 +98,7 @@ async function upsertCustomers(
 
   for (const customer of customers) {
     const customerSql = `
-      INSERT INTO public.clover_customers (
+      INSERT INTO clover.customers (
         merchant_id,
         clover_customer_id,
         first_name,
@@ -140,7 +140,7 @@ async function upsertCustomers(
       for (const email of customer.emailAddresses.elements) {
         await client.query(
           `
-            INSERT INTO public.clover_customer_emails (
+            INSERT INTO clover.customer_emails (
               customer_id,
               clover_email_id,
               email_address,
@@ -161,7 +161,7 @@ async function upsertCustomers(
       for (const phone of customer.phoneNumbers.elements) {
         await client.query(
           `
-            INSERT INTO public.clover_customer_phones (
+            INSERT INTO clover.customer_phones (
               customer_id,
               clover_phone_id,
               phone_number,
@@ -182,7 +182,7 @@ async function upsertCustomers(
       for (const address of customer.addresses.elements) {
         await client.query(
           `
-            INSERT INTO public.clover_customer_addresses (
+            INSERT INTO clover.customer_addresses (
               customer_id,
               clover_address_id,
               address1,
@@ -220,7 +220,7 @@ async function upsertEmployees(
   for (const employee of employees) {
     const result = await client.query<{ id: string }>(
       `
-        INSERT INTO public.clover_employees (
+        INSERT INTO clover.employees (
           merchant_id,
           clover_employee_id,
           name,
@@ -268,7 +268,7 @@ async function upsertCategories(
   for (const category of categories) {
     const result = await client.query<{ id: string }>(
       `
-        INSERT INTO public.clover_categories (
+        INSERT INTO clover.categories (
           merchant_id,
           clover_category_id,
           name,
@@ -314,7 +314,7 @@ async function upsertDiscounts(
   for (const discount of discounts) {
     await client.query(
       `
-        INSERT INTO public.clover_discounts (
+        INSERT INTO clover.discounts (
           merchant_id,
           clover_discount_id,
           name,
@@ -361,7 +361,7 @@ async function upsertItems(
   for (const item of items) {
     const itemResult = await client.query<{ id: string }>(
       `
-        INSERT INTO public.clover_items (
+        INSERT INTO clover.items (
           merchant_id,
           clover_item_id,
           code,
@@ -420,7 +420,7 @@ async function upsertItems(
 
         await client.query(
           `
-            INSERT INTO public.clover_item_categories (item_id, category_id)
+            INSERT INTO clover.item_categories (item_id, category_id)
             VALUES ($1, $2)
             ON CONFLICT (item_id, category_id)
             DO NOTHING
@@ -447,7 +447,7 @@ async function upsertStocks(
 
     await client.query(
       `
-        INSERT INTO public.clover_stocks (
+        INSERT INTO clover.stocks (
           item_id,
           quantity,
           clover_modified_time,
@@ -488,7 +488,7 @@ async function upsertOrders(
 
     const orderResult = await client.query<{ id: string }>(
       `
-        INSERT INTO public.clover_orders (
+        INSERT INTO clover.orders (
           merchant_id,
           clover_order_id,
           state,
@@ -540,7 +540,7 @@ async function upsertOrders(
 
         await client.query(
           `
-            INSERT INTO public.clover_order_line_items (
+            INSERT INTO clover.order_line_items (
               order_id,
               clover_line_item_id,
               item_id,
@@ -598,7 +598,7 @@ async function upsertPayments(
 
     await client.query(
       `
-        INSERT INTO public.clover_payments (
+        INSERT INTO clover.payments (
           merchant_id,
           clover_payment_id,
           order_id,

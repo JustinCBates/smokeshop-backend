@@ -12,6 +12,9 @@
     "type-check": "tsc --noEmit",
     "check-all": "npm run type-check && npm run lint",
     "migrate": "node scripts/run-migrations.js",
+    "migrate:up": "node-pg-migrate up -m migrations",
+    "migrate:down": "node-pg-migrate down -m migrations",
+    "migrate:create": "node-pg-migrate create -m migrations",
     "db:recreate": "bash ./scripts/recreate-identity-db.sh",
     "setup": "node scripts/run-migrations.js && npm run build"
   },
@@ -47,6 +50,7 @@
     "eslint-config-next": "^15",
     "@typescript-eslint/eslint-plugin": "^7",
     "@typescript-eslint/parser": "^7",
+    "node-pg-migrate": "^8.0.3",
     "postcss": "^8",
     "typescript": "^5"
   }
