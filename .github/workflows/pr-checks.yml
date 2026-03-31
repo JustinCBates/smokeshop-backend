@@ -3,11 +3,6 @@ name: PR Checks
 on:
   push:
     branches: [development]
-  pull_request:
-    branches:
-      - build
-      - main
-    types: [opened, synchronize, reopened]
 
 jobs:
   pr-checks:
