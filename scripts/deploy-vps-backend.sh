@@ -130,7 +130,7 @@ for key in CLOVER_APP_ID CLOVER_APP_SECRET CLOVER_ACCESS_TOKEN CLOVER_MERCHANT_I
   fi
 done
 
-if ! grep -Fq "api.neutraldevelopment.com {" "$CADDYFILE_PATH"; then
+if ! grep -q "api.neutraldevelopment.com" "$CADDYFILE_PATH"; then
 cat >> "$CADDYFILE_PATH" <<"CADDY_EOF"
 
 api.neutraldevelopment.com {
@@ -138,12 +138,6 @@ api.neutraldevelopment.com {
     reverse_proxy http://127.0.0.1:3202
     log
 }
-
-CADDY_EOF
-fi
-
-if ! grep -Fq "staging-api.neutraldevelopment.com {" "$CADDYFILE_PATH"; then
-cat >> "$CADDYFILE_PATH" <<"CADDY_EOF"
 
 staging-api.neutraldevelopment.com {
     encode gzip
