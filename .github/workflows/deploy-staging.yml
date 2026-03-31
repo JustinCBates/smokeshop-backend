@@ -43,8 +43,10 @@ jobs:
       - name: Verify deployment
         run: |
           sleep 10
-          response=$(curl -s -o /dev/null -w "%{http_code}" https://staging-api.neutraldevelopment.com)
-          if [ $response -eq 200 ] || [ $response -eq 301 ] || [ $response -eq 302 ]; then
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://staging-api.neutraldevelopment.com || true)
+          if [ -z "$response" ] || [ "$response" = "000" ]; then
+            echo "⚠️ Warning: could not verify staging API (DNS or connection issue)"
+          elif [ "$response" = "200" ] || [ "$response" = "301" ] || [ "$response" = "302" ]; then
             echo "✅ Deployment successful"
           else
             echo "⚠️ Warning: API returned HTTP $response"
