@@ -1,8 +1,7 @@
 name: Auto-create PR to Main
 
 on:
-  push:
-    branches: [build]
+  workflow_dispatch:
 
 permissions:
   contents: read
