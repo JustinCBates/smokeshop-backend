@@ -59,7 +59,7 @@ for required in Dockerfile.prod docker-compose.vps.yml .env.vps.production.examp
   fi
 done
 
-retry_command 3 10 rsync -avz --delete --prune-empty-dirs \
+retry_command 3 10 rsync -avz --delete --delete-missing-args --prune-empty-dirs \
   -e "ssh -i $VPS_SSH_KEY -p $VPS_PORT -o StrictHostKeyChecking=accept-new" \
   --files-from "$SYNC_LIST" \
   ./ "$VPS_USER@$VPS_HOST:$VPS_APP_DIR/"
@@ -183,8 +183,12 @@ for key in CLOVER_APP_ID CLOVER_APP_SECRET CLOVER_ACCESS_TOKEN CLOVER_MERCHANT_I
   fi
 done
 
+# Remove stale root page that may remain from old syncs and conflicts with app/route.ts.
+rm -f app/page.tsx
+
 ensure_caddy_site_block "api.neutraldevelopment.com" "3202"
 ensure_caddy_site_block "staging-api.neutraldevelopment.com" "3203"
+ensure_caddy_site_block "api.staging.neutraldevelopment.com" "3203"
 
 docker compose -f docker-compose.vps.yml up -d --build
 docker restart vscode-caddy
