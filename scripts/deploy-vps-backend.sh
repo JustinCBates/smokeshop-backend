@@ -4,7 +4,6 @@ set -euo pipefail
 
 VPS_USER="${VPS_USER:-opsdf55jrdjxsadgh}"
 VPS_HOST="${VPS_HOST:-srv1407636.hstgr.cloud}"
-VPS_FALLBACK_HOST="${VPS_FALLBACK_HOST:-187.77.212.203}"
 VPS_PORT="${VPS_PORT:-22022}"
 VPS_SSH_KEY="${VPS_SSH_KEY:-/tmp/id_ed25519_vps}"
 VPS_APP_DIR="${VPS_APP_DIR:-/opt/smokeshop/smokeshop-backend}"
@@ -25,36 +24,9 @@ if ! command -v git >/dev/null 2>&1; then
   exit 1
 fi
 
-retry_command() {
-  local attempts="$1"
-  local sleep_seconds="$2"
-  shift 2
-
-  local try
-  for try in $(seq 1 "$attempts"); do
-    if "$@"; then
-      return 0
-    fi
-
-    if [ "$try" -lt "$attempts" ]; then
-      echo "Command failed (attempt ${try}/${attempts}); retrying in ${sleep_seconds}s..."
-      sleep "$sleep_seconds"
-    fi
-  done
-
-  echo "Command failed after ${attempts} attempts."
-  return 1
-}
-
 echo "Syncing tracked backend files to VPS (excluding local artifacts)..."
 SYNC_LIST="$(mktemp)"
 trap 'rm -f "$SYNC_LIST"' EXIT
-RSYNC_SSH_CMD="ssh -4 -i $VPS_SSH_KEY -p $VPS_PORT -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -o ConnectionAttempts=1"
-
-DEPLOY_HOSTS=("$VPS_HOST")
-if [ "$VPS_FALLBACK_HOST" != "$VPS_HOST" ]; then
-  DEPLOY_HOSTS+=("$VPS_FALLBACK_HOST")
-fi
 
 # Only deploy tracked files from the working tree to avoid copying local artifacts.
 git -C "$(dirname "$0")/.." ls-files > "$SYNC_LIST"
@@ -66,25 +38,13 @@ for required in Dockerfile.prod docker-compose.vps.yml .env.vps.production.examp
   fi
 done
 
-ACTIVE_HOST=""
-for host in "${DEPLOY_HOSTS[@]}"; do
-  echo "Trying rsync to ${host}..."
-  if retry_command 6 10 rsync -avz --delete --delete-missing-args --prune-empty-dirs \
-    -e "$RSYNC_SSH_CMD" \
-    --files-from "$SYNC_LIST" \
-    ./ "$VPS_USER@$host:$VPS_APP_DIR/"; then
-    ACTIVE_HOST="$host"
-    break
-  fi
-done
-
-if [ -z "$ACTIVE_HOST" ]; then
-  echo "Unable to reach VPS over SSH using hosts: ${DEPLOY_HOSTS[*]}"
-  exit 1
-fi
+rsync -avz --delete --prune-empty-dirs \
+  -e "ssh -i $VPS_SSH_KEY -p $VPS_PORT -o StrictHostKeyChecking=accept-new" \
+  --files-from "$SYNC_LIST" \
+  ./ "$VPS_USER@$VPS_HOST:$VPS_APP_DIR/"
 
 echo "Preparing environment files, Caddy routes, and starting containers..."
-retry_command 6 10 ssh -4 -i "$VPS_SSH_KEY" -p "$VPS_PORT" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 -o ConnectionAttempts=1 "$VPS_USER@$ACTIVE_HOST" \
+ssh -i "$VPS_SSH_KEY" -p "$VPS_PORT" -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" \
   "CADDYFILE_PATH='$CADDYFILE_PATH' VPS_APP_DIR='$VPS_APP_DIR' SMOKESHOP_DATABASE_URL='${SMOKESHOP_DATABASE_URL:-}' CLOVER_APP_ID='${CLOVER_APP_ID:-}' CLOVER_APP_SECRET='${CLOVER_APP_SECRET:-}' CLOVER_ACCESS_TOKEN='${CLOVER_ACCESS_TOKEN:-}' CLOVER_MERCHANT_ID='${CLOVER_MERCHANT_ID:-}' CLOVER_WEBHOOK_SECRET='${CLOVER_WEBHOOK_SECRET:-}' CLOVER_OAUTH_BASE_URL='${CLOVER_OAUTH_BASE_URL:-https://www.clover.com}' CLOVER_API_BASE_URL='${CLOVER_API_BASE_URL:-https://api.clover.com}' CLOVER_REDIRECT_URI='${CLOVER_REDIRECT_URI:-}' bash -s" <<'EOF'
 set -euo pipefail
 
@@ -102,38 +62,6 @@ upsert_env_value() {
   fi
   printf '%s=%s\n' "$key" "$value" >> "$tmp_file"
   mv "$tmp_file" "$file"
-}
-
-ensure_caddy_site_block() {
-  local site_label="$1"
-  local upstream="$2"
-  local tmp_file
-
-  tmp_file="$(mktemp)"
-  awk -v site="${site_label} {" '
-    BEGIN { skipping = 0 }
-    $0 == site {
-      skipping = 1
-      next
-    }
-    skipping && $0 == "}" {
-      skipping = 0
-      next
-    }
-    skipping { next }
-    { print }
-  ' "$CADDYFILE_PATH" > "$tmp_file"
-  mv "$tmp_file" "$CADDYFILE_PATH"
-
-  cat >> "$CADDYFILE_PATH" <<CADDY_EOF
-
-${site_label} {
-    encode gzip
-    reverse_proxy http://127.0.0.1:${upstream}
-    log
-}
-
-CADDY_EOF
 }
 
 if [ ! -f .env.vps.production ]; then
@@ -202,12 +130,22 @@ for key in CLOVER_APP_ID CLOVER_APP_SECRET CLOVER_ACCESS_TOKEN CLOVER_MERCHANT_I
   fi
 done
 
-# Remove stale root page that may remain from old syncs and conflicts with app/route.ts.
-rm -f app/page.tsx
+if ! grep -q "api.neutraldevelopment.com" "$CADDYFILE_PATH"; then
+cat >> "$CADDYFILE_PATH" <<"CADDY_EOF"
 
-ensure_caddy_site_block "api.neutraldevelopment.com" "3202"
-ensure_caddy_site_block "staging-api.neutraldevelopment.com" "3203"
-ensure_caddy_site_block "api.staging.neutraldevelopment.com" "3203"
+api.neutraldevelopment.com {
+    encode gzip
+    reverse_proxy http://127.0.0.1:3202
+    log
+}
+
+staging-api.neutraldevelopment.com {
+    encode gzip
+    reverse_proxy http://127.0.0.1:3203
+    log
+}
+CADDY_EOF
+fi
 
 docker compose -f docker-compose.vps.yml up -d --build
 docker restart vscode-caddy
