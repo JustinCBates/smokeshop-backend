@@ -100,6 +100,11 @@ ENV_EOF
   fi
 fi
 
+upsert_env_value "NEXT_PUBLIC_SITE_URL" "https://api.neutraldevelopment.com" ".env.vps.production"
+upsert_env_value "NEXT_PUBLIC_API_URL" "https://api.neutraldevelopment.com" ".env.vps.production"
+upsert_env_value "NEXT_PUBLIC_SITE_URL" "https://staging-api.neutraldevelopment.com" ".env.vps.staging"
+upsert_env_value "NEXT_PUBLIC_API_URL" "https://staging-api.neutraldevelopment.com" ".env.vps.staging"
+
 DB_PASS=""
 if [ -f /opt/smokeshop/smokeshop-backend/.env.postgres.local ]; then
   DB_PASS=$(sed -n "s/^POSTGRES_PASSWORD=//p" /opt/smokeshop/smokeshop-backend/.env.postgres.local)
@@ -125,7 +130,7 @@ for key in CLOVER_APP_ID CLOVER_APP_SECRET CLOVER_ACCESS_TOKEN CLOVER_MERCHANT_I
   fi
 done
 
-if ! grep -q "api.neutraldevelopment.com" "$CADDYFILE_PATH"; then
+if ! grep -Fq "api.neutraldevelopment.com {" "$CADDYFILE_PATH"; then
 cat >> "$CADDYFILE_PATH" <<"CADDY_EOF"
 
 api.neutraldevelopment.com {
@@ -133,6 +138,12 @@ api.neutraldevelopment.com {
     reverse_proxy http://127.0.0.1:3202
     log
 }
+
+CADDY_EOF
+fi
+
+if ! grep -Fq "staging-api.neutraldevelopment.com {" "$CADDYFILE_PATH"; then
+cat >> "$CADDYFILE_PATH" <<"CADDY_EOF"
 
 staging-api.neutraldevelopment.com {
     encode gzip
