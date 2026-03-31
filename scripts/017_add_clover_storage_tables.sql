@@ -1,7 +1,7 @@
 -- Clover module storage tables
 -- Mirrors the Clover module shapes used by frontend types/mocks.
 
-CREATE TABLE IF NOT EXISTS public.clover_merchants (
+CREATE TABLE IF NOT EXISTS clover.merchants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   clover_merchant_id TEXT NOT NULL UNIQUE,
   merchant_name TEXT,
@@ -14,9 +14,9 @@ CREATE TABLE IF NOT EXISTS public.clover_merchants (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS public.clover_customers (
+CREATE TABLE IF NOT EXISTS clover.customers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  merchant_id UUID NOT NULL REFERENCES public.clover_merchants(id) ON DELETE CASCADE,
+  merchant_id UUID NOT NULL REFERENCES clover.merchants(id) ON DELETE CASCADE,
   clover_customer_id TEXT NOT NULL,
   first_name TEXT,
   last_name TEXT,
@@ -29,9 +29,9 @@ CREATE TABLE IF NOT EXISTS public.clover_customers (
   UNIQUE (merchant_id, clover_customer_id)
 );
 
-CREATE TABLE IF NOT EXISTS public.clover_customer_emails (
+CREATE TABLE IF NOT EXISTS clover.customer_emails (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_id UUID NOT NULL REFERENCES public.clover_customers(id) ON DELETE CASCADE,
+  customer_id UUID NOT NULL REFERENCES clover.customers(id) ON DELETE CASCADE,
   clover_email_id TEXT,
   email_address TEXT NOT NULL,
   raw_payload JSONB,
@@ -39,9 +39,9 @@ CREATE TABLE IF NOT EXISTS public.clover_customer_emails (
   UNIQUE (customer_id, email_address)
 );
 
-CREATE TABLE IF NOT EXISTS public.clover_customer_phones (
+CREATE TABLE IF NOT EXISTS clover.customer_phones (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_id UUID NOT NULL REFERENCES public.clover_customers(id) ON DELETE CASCADE,
+  customer_id UUID NOT NULL REFERENCES clover.customers(id) ON DELETE CASCADE,
   clover_phone_id TEXT,
   phone_number TEXT NOT NULL,
   raw_payload JSONB,
@@ -49,9 +49,9 @@ CREATE TABLE IF NOT EXISTS public.clover_customer_phones (
   UNIQUE (customer_id, phone_number)
 );
 
-CREATE TABLE IF NOT EXISTS public.clover_customer_addresses (
+CREATE TABLE IF NOT EXISTS clover.customer_addresses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_id UUID NOT NULL REFERENCES public.clover_customers(id) ON DELETE CASCADE,
+  customer_id UUID NOT NULL REFERENCES clover.customers(id) ON DELETE CASCADE,
   clover_address_id TEXT,
   address1 TEXT,
   city TEXT,
@@ -61,9 +61,9 @@ CREATE TABLE IF NOT EXISTS public.clover_customer_addresses (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS public.clover_employees (
+CREATE TABLE IF NOT EXISTS clover.employees (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  merchant_id UUID NOT NULL REFERENCES public.clover_merchants(id) ON DELETE CASCADE,
+  merchant_id UUID NOT NULL REFERENCES clover.merchants(id) ON DELETE CASCADE,
   clover_employee_id TEXT NOT NULL,
   name TEXT,
   role TEXT,
@@ -75,9 +75,9 @@ CREATE TABLE IF NOT EXISTS public.clover_employees (
   UNIQUE (merchant_id, clover_employee_id)
 );
 
-CREATE TABLE IF NOT EXISTS public.clover_categories (
+CREATE TABLE IF NOT EXISTS clover.categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  merchant_id UUID NOT NULL REFERENCES public.clover_merchants(id) ON DELETE CASCADE,
+  merchant_id UUID NOT NULL REFERENCES clover.merchants(id) ON DELETE CASCADE,
   clover_category_id TEXT NOT NULL,
   name TEXT NOT NULL,
   sort_order INTEGER,
@@ -89,9 +89,9 @@ CREATE TABLE IF NOT EXISTS public.clover_categories (
   UNIQUE (merchant_id, clover_category_id)
 );
 
-CREATE TABLE IF NOT EXISTS public.clover_discounts (
+CREATE TABLE IF NOT EXISTS clover.discounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  merchant_id UUID NOT NULL REFERENCES public.clover_merchants(id) ON DELETE CASCADE,
+  merchant_id UUID NOT NULL REFERENCES clover.merchants(id) ON DELETE CASCADE,
   clover_discount_id TEXT NOT NULL,
   name TEXT NOT NULL,
   amount BIGINT,
@@ -104,9 +104,9 @@ CREATE TABLE IF NOT EXISTS public.clover_discounts (
   UNIQUE (merchant_id, clover_discount_id)
 );
 
-CREATE TABLE IF NOT EXISTS public.clover_items (
+CREATE TABLE IF NOT EXISTS clover.items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  merchant_id UUID NOT NULL REFERENCES public.clover_merchants(id) ON DELETE CASCADE,
+  merchant_id UUID NOT NULL REFERENCES clover.merchants(id) ON DELETE CASCADE,
   clover_item_id TEXT NOT NULL,
   code TEXT,
   name TEXT NOT NULL,
@@ -123,17 +123,17 @@ CREATE TABLE IF NOT EXISTS public.clover_items (
   UNIQUE (merchant_id, clover_item_id)
 );
 
-CREATE TABLE IF NOT EXISTS public.clover_item_categories (
+CREATE TABLE IF NOT EXISTS clover.item_categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  item_id UUID NOT NULL REFERENCES public.clover_items(id) ON DELETE CASCADE,
-  category_id UUID NOT NULL REFERENCES public.clover_categories(id) ON DELETE CASCADE,
+  item_id UUID NOT NULL REFERENCES clover.items(id) ON DELETE CASCADE,
+  category_id UUID NOT NULL REFERENCES clover.categories(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (item_id, category_id)
 );
 
-CREATE TABLE IF NOT EXISTS public.clover_stocks (
+CREATE TABLE IF NOT EXISTS clover.stocks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  item_id UUID NOT NULL REFERENCES public.clover_items(id) ON DELETE CASCADE,
+  item_id UUID NOT NULL REFERENCES clover.items(id) ON DELETE CASCADE,
   quantity INTEGER NOT NULL,
   clover_modified_time BIGINT,
   raw_payload JSONB,
@@ -142,15 +142,15 @@ CREATE TABLE IF NOT EXISTS public.clover_stocks (
   UNIQUE (item_id)
 );
 
-CREATE TABLE IF NOT EXISTS public.clover_orders (
+CREATE TABLE IF NOT EXISTS clover.orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  merchant_id UUID NOT NULL REFERENCES public.clover_merchants(id) ON DELETE CASCADE,
+  merchant_id UUID NOT NULL REFERENCES clover.merchants(id) ON DELETE CASCADE,
   clover_order_id TEXT NOT NULL,
   state TEXT,
   total BIGINT,
   note TEXT,
-  customer_id UUID REFERENCES public.clover_customers(id) ON DELETE SET NULL,
-  employee_id UUID REFERENCES public.clover_employees(id) ON DELETE SET NULL,
+  customer_id UUID REFERENCES clover.customers(id) ON DELETE SET NULL,
+  employee_id UUID REFERENCES clover.employees(id) ON DELETE SET NULL,
   clover_created_time BIGINT,
   clover_modified_time BIGINT,
   raw_payload JSONB,
@@ -159,11 +159,11 @@ CREATE TABLE IF NOT EXISTS public.clover_orders (
   UNIQUE (merchant_id, clover_order_id)
 );
 
-CREATE TABLE IF NOT EXISTS public.clover_order_line_items (
+CREATE TABLE IF NOT EXISTS clover.order_line_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id UUID NOT NULL REFERENCES public.clover_orders(id) ON DELETE CASCADE,
+  order_id UUID NOT NULL REFERENCES clover.orders(id) ON DELETE CASCADE,
   clover_line_item_id TEXT,
-  item_id UUID REFERENCES public.clover_items(id) ON DELETE SET NULL,
+  item_id UUID REFERENCES clover.items(id) ON DELETE SET NULL,
   name TEXT,
   price BIGINT,
   quantity INTEGER,
@@ -174,12 +174,12 @@ CREATE TABLE IF NOT EXISTS public.clover_order_line_items (
   UNIQUE (order_id, clover_line_item_id)
 );
 
-CREATE TABLE IF NOT EXISTS public.clover_payments (
+CREATE TABLE IF NOT EXISTS clover.payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  merchant_id UUID NOT NULL REFERENCES public.clover_merchants(id) ON DELETE CASCADE,
+  merchant_id UUID NOT NULL REFERENCES clover.merchants(id) ON DELETE CASCADE,
   clover_payment_id TEXT NOT NULL,
-  order_id UUID REFERENCES public.clover_orders(id) ON DELETE SET NULL,
-  employee_id UUID REFERENCES public.clover_employees(id) ON DELETE SET NULL,
+  order_id UUID REFERENCES clover.orders(id) ON DELETE SET NULL,
+  employee_id UUID REFERENCES clover.employees(id) ON DELETE SET NULL,
   amount BIGINT NOT NULL,
   tip_amount BIGINT,
   tax_amount BIGINT,
@@ -196,25 +196,25 @@ CREATE TABLE IF NOT EXISTS public.clover_payments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_clover_customers_merchant
-  ON public.clover_customers (merchant_id);
+  ON clover.customers (merchant_id);
 
 CREATE INDEX IF NOT EXISTS idx_clover_employees_merchant
-  ON public.clover_employees (merchant_id);
+  ON clover.employees (merchant_id);
 
 CREATE INDEX IF NOT EXISTS idx_clover_categories_merchant
-  ON public.clover_categories (merchant_id);
+  ON clover.categories (merchant_id);
 
 CREATE INDEX IF NOT EXISTS idx_clover_items_merchant
-  ON public.clover_items (merchant_id);
+  ON clover.items (merchant_id);
 
 CREATE INDEX IF NOT EXISTS idx_clover_orders_merchant
-  ON public.clover_orders (merchant_id);
+  ON clover.orders (merchant_id);
 
 CREATE INDEX IF NOT EXISTS idx_clover_payments_merchant
-  ON public.clover_payments (merchant_id);
+  ON clover.payments (merchant_id);
 
 CREATE INDEX IF NOT EXISTS idx_clover_orders_customer
-  ON public.clover_orders (customer_id);
+  ON clover.orders (customer_id);
 
 CREATE INDEX IF NOT EXISTS idx_clover_payments_order
-  ON public.clover_payments (order_id);
+  ON clover.payments (order_id);
