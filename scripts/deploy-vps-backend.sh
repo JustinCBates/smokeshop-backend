@@ -24,6 +24,27 @@ if ! command -v git >/dev/null 2>&1; then
   exit 1
 fi
 
+retry_command() {
+  local attempts="$1"
+  local sleep_seconds="$2"
+  shift 2
+
+  local try
+  for try in $(seq 1 "$attempts"); do
+    if "$@"; then
+      return 0
+    fi
+
+    if [ "$try" -lt "$attempts" ]; then
+      echo "Command failed (attempt ${try}/${attempts}); retrying in ${sleep_seconds}s..."
+      sleep "$sleep_seconds"
+    fi
+  done
+
+  echo "Command failed after ${attempts} attempts."
+  return 1
+}
+
 echo "Syncing tracked backend files to VPS (excluding local artifacts)..."
 SYNC_LIST="$(mktemp)"
 trap 'rm -f "$SYNC_LIST"' EXIT
@@ -38,13 +59,13 @@ for required in Dockerfile.prod docker-compose.vps.yml .env.vps.production.examp
   fi
 done
 
-rsync -avz --delete --prune-empty-dirs \
+retry_command 3 10 rsync -avz --delete --prune-empty-dirs \
   -e "ssh -i $VPS_SSH_KEY -p $VPS_PORT -o StrictHostKeyChecking=accept-new" \
   --files-from "$SYNC_LIST" \
   ./ "$VPS_USER@$VPS_HOST:$VPS_APP_DIR/"
 
 echo "Preparing environment files, Caddy routes, and starting containers..."
-ssh -i "$VPS_SSH_KEY" -p "$VPS_PORT" -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" \
+retry_command 3 10 ssh -i "$VPS_SSH_KEY" -p "$VPS_PORT" -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" \
   "CADDYFILE_PATH='$CADDYFILE_PATH' VPS_APP_DIR='$VPS_APP_DIR' SMOKESHOP_DATABASE_URL='${SMOKESHOP_DATABASE_URL:-}' CLOVER_APP_ID='${CLOVER_APP_ID:-}' CLOVER_APP_SECRET='${CLOVER_APP_SECRET:-}' CLOVER_ACCESS_TOKEN='${CLOVER_ACCESS_TOKEN:-}' CLOVER_MERCHANT_ID='${CLOVER_MERCHANT_ID:-}' CLOVER_WEBHOOK_SECRET='${CLOVER_WEBHOOK_SECRET:-}' CLOVER_OAUTH_BASE_URL='${CLOVER_OAUTH_BASE_URL:-https://www.clover.com}' CLOVER_API_BASE_URL='${CLOVER_API_BASE_URL:-https://api.clover.com}' CLOVER_REDIRECT_URI='${CLOVER_REDIRECT_URI:-}' bash -s" <<'EOF'
 set -euo pipefail
 
