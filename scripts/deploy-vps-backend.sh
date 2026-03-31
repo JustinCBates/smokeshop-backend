@@ -100,6 +100,11 @@ ENV_EOF
   fi
 fi
 
+upsert_env_value "NEXT_PUBLIC_SITE_URL" "https://api.neutraldevelopment.com" ".env.vps.production"
+upsert_env_value "NEXT_PUBLIC_API_URL" "https://api.neutraldevelopment.com" ".env.vps.production"
+upsert_env_value "NEXT_PUBLIC_SITE_URL" "https://staging-api.neutraldevelopment.com" ".env.vps.staging"
+upsert_env_value "NEXT_PUBLIC_API_URL" "https://staging-api.neutraldevelopment.com" ".env.vps.staging"
+
 DB_PASS=""
 if [ -f /opt/smokeshop/smokeshop-backend/.env.postgres.local ]; then
   DB_PASS=$(sed -n "s/^POSTGRES_PASSWORD=//p" /opt/smokeshop/smokeshop-backend/.env.postgres.local)
