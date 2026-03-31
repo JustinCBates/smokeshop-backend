@@ -85,6 +85,38 @@ upsert_env_value() {
   mv "$tmp_file" "$file"
 }
 
+ensure_caddy_site_block() {
+  local site_label="$1"
+  local upstream="$2"
+  local tmp_file
+
+  tmp_file="$(mktemp)"
+  awk -v site="${site_label} {" '
+    BEGIN { skipping = 0 }
+    $0 == site {
+      skipping = 1
+      next
+    }
+    skipping && $0 == "}" {
+      skipping = 0
+      next
+    }
+    skipping { next }
+    { print }
+  ' "$CADDYFILE_PATH" > "$tmp_file"
+  mv "$tmp_file" "$CADDYFILE_PATH"
+
+  cat >> "$CADDYFILE_PATH" <<CADDY_EOF
+
+${site_label} {
+    encode gzip
+    reverse_proxy http://127.0.0.1:${upstream}
+    log
+}
+
+CADDY_EOF
+}
+
 if [ ! -f .env.vps.production ]; then
   if [ -f .env.vps.production.example ]; then
     cp .env.vps.production.example .env.vps.production
@@ -151,22 +183,8 @@ for key in CLOVER_APP_ID CLOVER_APP_SECRET CLOVER_ACCESS_TOKEN CLOVER_MERCHANT_I
   fi
 done
 
-if ! grep -q "api.neutraldevelopment.com" "$CADDYFILE_PATH"; then
-cat >> "$CADDYFILE_PATH" <<"CADDY_EOF"
-
-api.neutraldevelopment.com {
-    encode gzip
-    reverse_proxy http://127.0.0.1:3202
-    log
-}
-
-staging-api.neutraldevelopment.com {
-    encode gzip
-    reverse_proxy http://127.0.0.1:3203
-    log
-}
-CADDY_EOF
-fi
+ensure_caddy_site_block "api.neutraldevelopment.com" "3202"
+ensure_caddy_site_block "staging-api.neutraldevelopment.com" "3203"
 
 docker compose -f docker-compose.vps.yml up -d --build
 docker restart vscode-caddy
