@@ -1,0 +1,86 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: backend-deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      APP_DIR: ${{ vars.PRODUCTION_APP_DIR }}
+      SITE_URL: ${{ vars.PRODUCTION_SITE_URL || 'https://api.neutraldevelopment.com' }}
+      CADDYFILE_PATH: ${{ vars.CADDYFILE_PATH || '/opt/patriotic-projects/vscode-proxy/Caddyfile' }}
+
+    steps:
+      - name: Check deployment configuration
+        id: config
+        shell: bash
+        env:
+          SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          SSH_USER: ${{ secrets.VPS_SSH_USER }}
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$APP_DIR" ] || [ -z "$SITE_URL" ] || [ -z "$SSH_HOST" ] || [ -z "$SSH_USER" ] || [ -z "$SSH_KEY" ] || [ -z "$SSH_KNOWN_HOSTS" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping production deployment because required variables or secrets are missing." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout code
+        if: steps.config.outputs.configured == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup SSH key
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.VPS_SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy to VPS
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          VPS_USER="${{ secrets.VPS_SSH_USER }}" \
+          VPS_HOST="${{ secrets.VPS_SSH_HOST }}" \
+          VPS_PORT="${{ secrets.VPS_SSH_PORT }}" \
+          VPS_SSH_KEY="$HOME/.ssh/id_ed25519" \
+          VPS_APP_DIR="$APP_DIR" \
+          CADDYFILE_PATH="$CADDYFILE_PATH" \
+          SMOKESHOP_DATABASE_URL="${{ secrets.SMOKESHOP_DATABASE_URL }}" \
+          CLOVER_APP_ID="${{ secrets.CLOVER_APP_ID }}" \
+          CLOVER_APP_SECRET="${{ secrets.CLOVER_APP_SECRET }}" \
+          CLOVER_ACCESS_TOKEN="${{ secrets.CLOVER_ACCESS_TOKEN }}" \
+          CLOVER_MERCHANT_ID="${{ secrets.CLOVER_MERCHANT_ID }}" \
+          CLOVER_WEBHOOK_SECRET="${{ secrets.CLOVER_WEBHOOK_SECRET }}" \
+          CLOVER_OAUTH_BASE_URL="${{ secrets.CLOVER_OAUTH_BASE_URL }}" \
+          CLOVER_API_BASE_URL="${{ secrets.CLOVER_API_BASE_URL }}" \
+          CLOVER_REDIRECT_URI="${{ secrets.CLOVER_REDIRECT_URI }}" \
+          bash scripts/deploy-vps-backend.sh
+
+      - name: Verify deployment
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          sleep 10
+          response=$(curl -s -o /dev/null -w "%{http_code}" "$SITE_URL" || true)
+          if [ -z "$response" ] || [ "$response" = "000" ]; then
+            echo "Warning: could not verify production API"
+          elif [ "$response" = "200" ] || [ "$response" = "301" ] || [ "$response" = "302" ]; then
+            echo "Production deployment successful"
+          else
+            echo "Warning: production API returned HTTP $response"
+          fi
