@@ -1,0 +1,69 @@
+name: Sync Promotion Source Branch
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - build
+      - main
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  sync-source-branch:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Map promotion branch pair
+        id: promotion
+        shell: bash
+        run: |
+          source_branch="${{ github.event.pull_request.head.ref }}"
+          target_branch="${{ github.event.pull_request.base.ref }}"
+          merge_sha="${{ github.event.pull_request.merge_commit_sha }}"
+
+          case "${source_branch}:${target_branch}" in
+            development:build)
+              echo "branch_to_update=development" >> "$GITHUB_OUTPUT"
+              ;;
+            build:main)
+              echo "branch_to_update=build" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+
+          if [ -z "$merge_sha" ] || [ "$merge_sha" = "null" ]; then
+            echo "Promotion branch sync requires merge commits. Squash and rebase merges cannot preserve identical branch SHAs." >&2
+            exit 1
+          fi
+
+          echo "merge_sha=$merge_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Fast-forward source branch to merged commit
+        if: steps.promotion.outputs.skip != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = '${{ steps.promotion.outputs.branch_to_update }}';
+            const sha = '${{ steps.promotion.outputs.merge_sha }}';
+
+            try {
+              await github.rest.git.updateRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${branch}`,
+                sha,
+                force: false,
+              });
+              core.notice(`Updated ${branch} to ${sha}`);
+            } catch (error) {
+              core.setFailed(
+                `Failed to update ${branch} to ${sha}. Ensure merge commits are enabled and GitHub Actions can update protected branches. ${error.message}`
+              );
+            }
