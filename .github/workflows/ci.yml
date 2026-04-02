@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [development, build, main]
+  push:
+    branches: [development, build, main]
+
+concurrency:
+  group: backend-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run linter
+        run: pnpm lint
+
+      - name: Check TypeScript
+        run: pnpm type-check
+
+      - name: Run unit tests
+        run: pnpm test:ci
+
+      - name: Build application
+        run: pnpm build
+        env:
+          DATABASE_URL: ${{ secrets.SMOKESHOP_DATABASE_URL }}
+          INVENTORY_MANAGER_EMAILS: ${{ secrets.INVENTORY_MANAGER_EMAILS }}
+          CLOVER_ACCESS_TOKEN: ${{ secrets.CLOVER_ACCESS_TOKEN }}
+          CLOVER_MERCHANT_ID: ${{ secrets.CLOVER_MERCHANT_ID }}
+          CLOVER_WEBHOOK_SECRET: ${{ secrets.CLOVER_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.PRODUCTION_SITE_URL || 'https://api.neutraldevelopment.com' }}
+          AGE_VERIFICATION_PROVIDER: dob-photo
+
+      - name: Check build output
+        run: |
+          if [ ! -d ".next" ]; then
+            echo "Build failed - .next directory not found"
+            exit 1
+          fi
+          echo "Build successful"
+# CI - Build & Test
+name: CI - Build & Test
+
+on:
+  pull_request:
+    branches: [build, main]
+  push:
+    branches: [development, build]
+
+jobs:
+  build:
+    name: Build and Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Run linter
+        run: pnpm lint
+
+      - name: Check TypeScript
+        run: npx tsc --noEmit
+
+
+      - name: Build application
+        run: pnpm build
+        env:
+          DATABASE_URL: ${{ secrets.SMOKESHOP_DATABASE_URL }}
+          INVENTORY_MANAGER_EMAILS: ${{ secrets.INVENTORY_MANAGER_EMAILS }}
+          CLOVER_ACCESS_TOKEN: ${{ secrets.CLOVER_ACCESS_TOKEN }}
+          CLOVER_MERCHANT_ID: ${{ secrets.CLOVER_MERCHANT_ID }}
+          CLOVER_WEBHOOK_SECRET: ${{ secrets.CLOVER_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_SITE_URL: https://neutraldevelopment.com
+          AGE_VERIFICATION_PROVIDER: dob-photo
+
+      - name: Check for build output
+        run: |
+          if [ ! -d ".next" ]; then
+            echo "Build failed - .next directory not found"
+            exit 1
+          fi
+          echo "✅ Build successful"

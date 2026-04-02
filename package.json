@@ -9,9 +9,13 @@
     "start:next": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
+    "test": "vitest --passWithNoTests",
+    "test:watch": "vitest",
+    "test:ci": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
     "type-check": "tsc --noEmit",
-    "check-all": "npm run type-check && npm run lint",
-    "ci:rig": "npm run lint && npm run type-check && npm run build",
+    "check-all": "npm run lint && npm run type-check && npm run test:ci",
+    "ci:rig": "npm run lint && npm run type-check && npm run test:ci && npm run build",
     "migrate": "node scripts/run-migrations.js",
     "migrate:up": "node-pg-migrate up -m migrations",
     "migrate:down": "node-pg-migrate down -m migrations",
@@ -49,12 +53,15 @@
     "@types/react-dom": "^19",
     "@typescript-eslint/eslint-plugin": "^7",
     "@typescript-eslint/parser": "^7",
+    "@vitest/coverage-v8": "^4.1.2",
     "autoprefixer": "^10",
     "eslint": "^8",
     "eslint-config-next": "^15",
     "husky": "^9.1.7",
     "node-pg-migrate": "^8.0.3",
     "postcss": "^8",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^4.1.2"
   }
 }
