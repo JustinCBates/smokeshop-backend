@@ -28,12 +28,10 @@ jobs:
       - name: Run linter
         id: lint
         run: pnpm lint
-        continue-on-error: true
 
       - name: Check TypeScript
         id: typecheck
         run: npx tsc --noEmit
-        continue-on-error: true
 
       - name: Build check
         id: build
@@ -58,6 +56,3 @@ jobs:
           echo "| TypeScript | ${{ steps.typecheck.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Build | ${{ steps.build.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
 
-      - name: Fail if build failed
-        if: steps.build.outcome == 'failure'
-        run: exit 1
