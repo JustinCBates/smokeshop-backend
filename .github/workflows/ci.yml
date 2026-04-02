@@ -63,3 +63,151 @@ jobs:
             exit 1
           fi
           echo "Build successful"
+
+  legacy-build:
+    name: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x]
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run linter
+        run: pnpm lint
+
+      - name: Check TypeScript
+        run: pnpm type-check
+
+      - name: Build application
+        run: pnpm build
+        env:
+          DATABASE_URL: ${{ secrets.SMOKESHOP_DATABASE_URL }}
+          INVENTORY_MANAGER_EMAILS: ${{ secrets.INVENTORY_MANAGER_EMAILS }}
+          CLOVER_ACCESS_TOKEN: ${{ secrets.CLOVER_ACCESS_TOKEN }}
+          CLOVER_MERCHANT_ID: ${{ secrets.CLOVER_MERCHANT_ID }}
+          CLOVER_WEBHOOK_SECRET: ${{ secrets.CLOVER_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.PRODUCTION_SITE_URL || 'https://api.neutraldevelopment.com' }}
+          AGE_VERIFICATION_PROVIDER: dob-photo
+
+  build-and-lint:
+    name: Build and Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run linter
+        run: pnpm lint
+
+      - name: Check TypeScript
+        run: pnpm type-check
+
+      - name: Build application
+        run: pnpm build
+        env:
+          DATABASE_URL: ${{ secrets.SMOKESHOP_DATABASE_URL }}
+          INVENTORY_MANAGER_EMAILS: ${{ secrets.INVENTORY_MANAGER_EMAILS }}
+          CLOVER_ACCESS_TOKEN: ${{ secrets.CLOVER_ACCESS_TOKEN }}
+          CLOVER_MERCHANT_ID: ${{ secrets.CLOVER_MERCHANT_ID }}
+          CLOVER_WEBHOOK_SECRET: ${{ secrets.CLOVER_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.PRODUCTION_SITE_URL || 'https://api.neutraldevelopment.com' }}
+          AGE_VERIFICATION_PROVIDER: dob-photo
+
+  legacy-pr-checks:
+    name: pr-checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run linter
+        id: lint
+        run: pnpm lint
+
+      - name: Check TypeScript
+        id: typecheck
+        run: pnpm type-check
+
+      - name: Run unit tests
+        id: test
+        run: pnpm test:ci
+
+      - name: Build check
+        id: build
+        run: pnpm build
+        env:
+          DATABASE_URL: ${{ secrets.SMOKESHOP_DATABASE_URL }}
+          INVENTORY_MANAGER_EMAILS: ${{ secrets.INVENTORY_MANAGER_EMAILS }}
+          CLOVER_ACCESS_TOKEN: ${{ secrets.CLOVER_ACCESS_TOKEN }}
+          CLOVER_MERCHANT_ID: ${{ secrets.CLOVER_MERCHANT_ID }}
+          CLOVER_WEBHOOK_SECRET: ${{ secrets.CLOVER_WEBHOOK_SECRET }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.PRODUCTION_SITE_URL || 'https://api.neutraldevelopment.com' }}
+          AGE_VERIFICATION_PROVIDER: dob-photo
+
+      - name: PR Check Summary
+        if: always()
+        run: |
+          echo "## PR Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Linting | ${{ steps.lint.outcome == 'success' && 'passed' || 'failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| TypeScript | ${{ steps.typecheck.outcome == 'success' && 'passed' || 'failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tests | ${{ steps.test.outcome == 'success' && 'passed' || 'failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ steps.build.outcome == 'success' && 'passed' || 'failed' }} |" >> $GITHUB_STEP_SUMMARY
